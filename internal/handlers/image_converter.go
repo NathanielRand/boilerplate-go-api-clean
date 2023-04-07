@@ -1,11 +1,31 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/disintegration/imaging"
 )
+
+// formatMapping is a map of supported image formats.
+// The key is the format name and the value is the imaging.Format value.
+// See https://godoc.org/github.com/disintegration/imaging#Format
+var formatMapping = map[string]imaging.Format{
+	"jpeg": imaging.JPEG,
+	"png":  imaging.PNG,
+	"gif":  imaging.GIF,
+	"bmp":  imaging.BMP,
+	"tiff": imaging.TIFF,
+	// "webp": imaging.WEBP,
+}
 
 // ImageConvertHandler is a handler for the /convert/image/ endpoint.
 // It converts an image to a different format. It accepts a POST request
@@ -67,7 +87,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store the converted image in cloud storage
-	// and return an authenicated URL to the converted image.
+	// and return an authenticated URL to the converted image.
 	convertedImageURL, err := storeImage(convertedFile)
 
 	// Create and populate the response object
@@ -95,15 +115,46 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 
 // convertImage converts an image to a different format
 func convertImage(buf []byte, from, to string) ([]byte, error) {
-	// TODO: Use t
+	// Use disintegration/imaging to convert the image type
+	// and return the converted image as a byte slice.
+
+	// Load the image from byte slice
+	src, err := imaging.Decode(bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the image to the desired format
+	dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Black), image.ZP, draw.Src)
+	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Over)
+
+	// Create a buffer to store the converted image
+	outputBuf := bytes.NewBuffer(nil)
+
+	// Save the converted image to the buffer in the desired format
+	err = imaging.Encode(outputBuf, dst, formatMapping[to])
+	if err != nil {
+		return nil, err
+	}
+
+	return outputBuf.Bytes(), nil
 }
 
-// storeImage stores an image in cloud storage and 
-// returns an authenticated URL to the image
+// storeImage stores an image in cloud storage and returns an authenticated URL to the image
 func storeImage(buf []byte) (string, error) {
-	// TODO: Call cloud storage service to store the image
-	// and return an authenticated URL to the image
+	// Simulate storing the image in cloud storage
+	// Here, we generate a random URL with a timestamp as an example
+	// In a real implementation, you would call the appropriate cloud storage service API to store the image
 	
+	// Generate a random URL with timestamp
+	rand.Seed(time.Now().UnixNano())
+	randNum := rand.Intn(1000)
+	timestamp := time.Now().Format("20060102150405")
+	url := fmt.Sprintf("https://example.com/images/%d/image_%s.jpg", randNum, timestamp)
+	
+	// Return the authenticated URL to the image
+	return url, nil
 }
 
 // Function to extract from and to values from URL slug
@@ -122,7 +173,7 @@ func extractFromToValuesFromURL(r *http.Request) (from, to string) {
 // isFormatSupported checks if a given image format is supported
 func isFormatSupported(format string) bool {
 	// Supported image formats
-	supportedFormats := []string{"any", "jpg", "jpeg", "png", "bmp", "gif", "tiff", "webp"}
+	supportedFormats := []string{"any", "webp", "jpg", "jpeg", "png", "bmp", "gif", "tiff"}
 	// Check if the format is supported
 	for _, f := range supportedFormats {
 		if f == format {
