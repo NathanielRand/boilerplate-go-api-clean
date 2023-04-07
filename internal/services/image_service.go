@@ -2,8 +2,9 @@ package services
 
 import (
 	"context"
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/internal/models"
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/internal/repositories"
+
+	"github.com/NathanielRand/webchest-image-converter-api/internal/models"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 )
 
 // ImageService is a service that retrieves data from Firestore/Cloud Storage.

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/internal/handlers"
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/internal/middleware"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/handlers"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/middleware"
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 )
@@ -35,10 +35,26 @@ func SetupRouter() *mux.Router {
 	router.Handle("/api/v1/health", chain.ThenFunc(handlers.HealthHandler)).Methods("GET")
 
 	// User endpoints
-	// router.Handle("/api/v1/convert/image/{from}/{to}", chain.ThenFunc(handlers.ConvertHandler)).Methods("POST")
+	router.Handle("/api/v1/convert/image/{from}/{to}", chain.ThenFunc(handlers.ImageConvertHandler)).Methods("POST")
+	
+	// router.Handle("/api/v1/resize/image/{height}/{width}", chain.ThenFunc(handlers.ImageResizeHandler)).Methods("POST")
+	// router.Handle("/api/v1/crop/image/{height}/{width}/{x}/{y}", chain.ThenFunc(handlers.ImageCropHandler)).Methods("POST")
+	// router.Handle("/api/v1/zoom/image/{factor}", chain.ThenFunc(handlers.ImageZoomHandler)).Methods("POST")
+	// router.Handle("/api/v1/rotate/image/{degrees}", chain.ThenFunc(handlers.ImageRotateHandler)).Methods("POST")
+	// router.Handle("/api/v1/flip/image/{direction}", chain.ThenFunc(handlers.ImageFlipHandler)).Methods("POST")
+	// router.Handle("/api/v1/blur/image/{sigma}", chain.ThenFunc(handlers.ImageBlurHandler)).Methods("POST")
+	// router.Handle("/api/v1/contrast/image/{factor}", chain.ThenFunc(handlers.ImageContrastHandler)).Methods("POST")
+	// router.Handle("/api/v1/brightness/image/{factor}", chain.ThenFunc(handlers.ImageBrightnessHandler)).Methods("POST")
+	// router.Handle("/api/v1/sharpen/image/{sigma}/{radius}", chain.ThenFunc(handlers.ImageSharpenHandler)).Methods("POST")
+	// router.Handle("/api/v1/median/image/{radius}", chain.ThenFunc(handlers.ImageMedianHandler)).Methods("POST")
+	// router.Handle("/api/v1/emboss/image/{radius}", chain.ThenFunc(handlers.ImageEmbossHandler)).Methods("POST")
+	// router.Handle("/api/v1/edge/image/{radius}", chain.ThenFunc(handlers.ImageEdgeHandler)).Methods("POST")
+	// router.Handle("/api/v1/normalize/image/{percent}", chain.ThenFunc(handlers.ImageNormalizeHandler)).Methods("POST")
+	// router.Handle("/api/v1/grayscale/image/{percent}", chain.ThenFunc(handlers.ImageGrayscaleHandler)).Methods("POST")
+	// router.Handle("/api/v1/sepia/image/{percent}", chain.ThenFunc(handlers.ImageSepiaHandler)).Methods("POST")
+	// router.Handle("/api/v1/invert/image/", chain.ThenFunc(handlers.ImageInvertHandler)).Methods("POST")
 
-	// Debug endpoints
-	// Register pprof endpoints
+	// Debug endpoints	
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)

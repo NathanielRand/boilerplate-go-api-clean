@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/cmd/server"
+	"github.com/NathanielRand/webchest-image-converter-api/cmd/server"
 )
 
 func main() {

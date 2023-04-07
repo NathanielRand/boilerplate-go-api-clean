@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/NathanielRand/morebytes-templates/go/api/clean-layered/internal/routes"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/routes"
 )
 
 func StartServer() error {
@@ -24,6 +24,6 @@ func StartServer() error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }

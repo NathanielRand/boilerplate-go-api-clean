@@ -5,10 +5,11 @@ import (
 	"net/http"
 )
 
-// HealthHandler is a handler for the /health endpoint.
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
+func ImageServerHandler(w http.ResponseWriter, r *http.Request) {
+	// Your API logic goes here
+
 	// Create and populate the response object
-	response := map[string]string{"status": "Health is good :)"}
+	response := map[string]string{"message": "Hello, you reached the Image Server handler!"}
 
 	// Set the response content type to JSON
 	w.Header().Set("Content-Type", "application/json")
