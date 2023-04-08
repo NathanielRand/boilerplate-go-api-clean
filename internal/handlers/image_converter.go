@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -11,6 +12,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/NathanielRand/webchest-image-converter-api/internal/config"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 
 	"github.com/disintegration/imaging"
 )
@@ -88,14 +92,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store the converted image in cloud storage
 	// and return an authenticated URL to the converted image.
-	convertedImageURL, err := storeImage(convertedFile)
+	convertedImageURL, err := storeImage(convertedFile, to)
 
 	// Create and populate the response object
 	response := map[string]string{
-		"status": "success",
+		"status":      "success",
 		"status_code": "200",
-		"image_url": convertedImageURL,
-		"message": "Image converted successfully",
+		"image_url":   convertedImageURL,
+		"message":     "Image converted successfully",
 	}
 
 	// Set the response content type to JSON
@@ -104,12 +108,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	// Encode the response object as JSON and write it to the response
 	// and return an error if the encoding fails.
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Set the response content type 
+		// Set the response content type
 		w.Header().Set("Content-Type", "text/plain")
 		// Set the response status code to 500 Internal Server Error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// 
 
 }
 
@@ -142,17 +148,39 @@ func convertImage(buf []byte, from, to string) ([]byte, error) {
 }
 
 // storeImage stores an image in cloud storage and returns an authenticated URL to the image
-func storeImage(buf []byte) (string, error) {
+func storeImage(buf []byte, newExt string) (string, error) {
 	// Simulate storing the image in cloud storage
 	// Here, we generate a random URL with a timestamp as an example
 	// In a real implementation, you would call the appropriate cloud storage service API to store the image
-	
+
 	// Generate a random URL with timestamp
 	rand.Seed(time.Now().UnixNano())
 	randNum := rand.Intn(1000)
 	timestamp := time.Now().Format("20060102150405")
-	url := fmt.Sprintf("https://example.com/images/%d/image_%s.jpg", randNum, timestamp)
-	
+	name := fmt.Sprintf("webchest_%d_image_%s.%s", randNum, timestamp, newExt)
+
+	// Get the context
+	ctx := context.Background()
+
+	// Bucket name
+	bucketName := "webchest_image_converter"
+
+	// Get the global storage client instance
+	client := config.GetStorageClient()
+
+	// Create a new instance of CloudStorageRepository
+	cloudStorageRepo, err := repositories.NewCloudStorageRepository(bucketName, client)
+	if err != nil {
+		return "", err
+	}
+
+	// Call UploadImage on the cloudStorageRepo instance to upload the image to cloud storage
+	// and return an authenticated URL to the image.
+	url, err := cloudStorageRepo.UploadImage(ctx, name, bytes.NewReader(buf))
+	if err != nil {
+		return "", err
+	}
+
 	// Return the authenticated URL to the image
 	return url, nil
 }
