@@ -21,7 +21,7 @@ func CachingMiddleware(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Generate a cache key based on the request URL and method
-		cacheKey := r.Method + r.URL.String()
+		cacheKey := r.RemoteAddr + r.RequestURI + r.FormValue("image") + r.FormValue("format")
 
 		// Check if the response is already cached
 		if cachedResponse, found := c.Get(cacheKey); found {

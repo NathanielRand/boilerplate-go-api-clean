@@ -8,14 +8,18 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"image/png"
+	"log"
 	"math/rand"
 	"net/http"
-	"strings"
 	"time"
 
+	// Internal
 	"github.com/NathanielRand/webchest-image-converter-api/internal/config"
 	"github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 
+	// External
+	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 )
 
@@ -42,23 +46,26 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract from and to values from URL slug
-	from, to := extractFromToValuesFromURL(r)
-	print("FROM: ", from)
-	print("TO: ", to)
-
-	// Check if the URL from/to format value is supported
-	if !isFormatSupported(from) || !isFormatSupported(to) {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Unsupported image format"}`)
-		return
-	}
-
 	// Parse the form data
 	err := r.ParseMultipartForm(32 << 20) // Max 32 MB file size
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, `{"status": "error", "message": "Failed to parse form data. File size may be too large or the form data may be invalid", "error": "%s"}`, err)
+		return
+	}
+
+	// Get the format value from the form data
+	format := r.FormValue("format")
+	if format == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `{"status": "error", "message": "Missing format value"}`)
+		return
+	}
+
+	// Check if the URL from/to format value is supported
+	if !isFormatSupported(format) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `{"status": "error", "message": "Unsupported image format"}`)
 		return
 	}
 
@@ -83,7 +90,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert the image
-	convertedFile, err := convertImage(buf, from, to)
+	convertedFile, err := convertImage(buf, format)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, `{"status": "error", "message": "Failed to convert image", "error": "%s"}`, err)
@@ -92,14 +99,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store the converted image in cloud storage
 	// and return an authenticated URL to the converted image.
-	convertedImageURL, err := storeImage(convertedFile, to)
+	convertedImageURL, err := storeImage(convertedFile, format)
 
 	// Create and populate the response object
 	response := map[string]string{
 		"status":      "success",
 		"status_code": "200",
 		"image_url":   convertedImageURL,
-		"message":     "Image converted successfully",
+		"message":     "image  successfully converted to " + format + " format",
 	}
 
 	// Set the response content type to JSON
@@ -115,12 +122,12 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 
+	//
 
 }
 
 // convertImage converts an image to a different format
-func convertImage(buf []byte, from, to string) ([]byte, error) {
+func convertImage(buf []byte, format string) ([]byte, error) {
 	// Use disintegration/imaging to convert the image type
 	// and return the converted image as a byte slice.
 
@@ -132,16 +139,34 @@ func convertImage(buf []byte, from, to string) ([]byte, error) {
 
 	// Convert the image to the desired format
 	dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Black), image.ZP, draw.Src)
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.ZP, draw.Src)
 	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Over)
 
 	// Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
 
-	// Save the converted image to the buffer in the desired format
-	err = imaging.Encode(outputBuf, dst, formatMapping[to])
-	if err != nil {
-		return nil, err
+	// If the image is being converted to WEBP,
+	// use chai2010/webp to convert the image to WEBP
+	// and return the converted image as a byte slice.
+	if format == "webp" {
+		// Convert the image to WEBP
+		// and return the converted image as a byte slice.
+		// Encode lossless webp
+		if err = webp.Encode(outputBuf, dst, &webp.Options{Lossless: true}); err != nil {
+			log.Println(err)
+		}
+	} else if format == "png" {
+		// Save the converted image to the buffer in the desired format
+		err = png.Encode(outputBuf, dst)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Save the converted image to the buffer in the desired format
+		err = imaging.Encode(outputBuf, dst, formatMapping[format])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return outputBuf.Bytes(), nil
@@ -185,23 +210,10 @@ func storeImage(buf []byte, newExt string) (string, error) {
 	return url, nil
 }
 
-// Function to extract from and to values from URL slug
-func extractFromToValuesFromURL(r *http.Request) (from, to string) {
-	// Extract from and to values from URL slug
-	slug := strings.TrimPrefix(r.URL.Path, "/api/v1/convert/image/")
-	// Split the slug using '/' as delimiter
-	parts := strings.Split(slug, "/")
-	// Extract from and to values from the parts slice
-	from = parts[0]
-	to = parts[1]
-	// Return the from and to values
-	return from, to
-}
-
 // isFormatSupported checks if a given image format is supported
 func isFormatSupported(format string) bool {
 	// Supported image formats
-	supportedFormats := []string{"any", "webp", "jpg", "jpeg", "png", "bmp", "gif", "tiff"}
+	supportedFormats := []string{"webp", "jpg", "jpeg", "png", "bmp", "gif", "tiff"}
 	// Check if the format is supported
 	for _, f := range supportedFormats {
 		if f == format {

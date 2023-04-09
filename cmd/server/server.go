@@ -15,8 +15,8 @@ func StartServer() error {
 	server := &http.Server{
 		Addr:         ":8080",
 		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  50 * time.Second,
+		WriteTimeout: 100 * time.Second,
 	}
 
 	// Start the HTTP server

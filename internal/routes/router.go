@@ -25,7 +25,7 @@ func SetupRouter() *mux.Router {
 	})
 	chain = chain.Append(middleware.RateLimitingMiddleware)
 	chain = chain.Append(middleware.QuotaMiddleware)
-	chain = chain.Append(middleware.CachingMiddleware)
+	// chain = chain.Append(middleware.CachingMiddleware)
 	chain = chain.Append(middleware.LoggingMiddleware)
 
 	// API endpoints to the router
@@ -35,8 +35,8 @@ func SetupRouter() *mux.Router {
 	router.Handle("/api/v1/health", chain.ThenFunc(handlers.HealthHandler)).Methods("GET")
 
 	// User endpoints
-	router.Handle("/api/v1/convert/image/{from}/{to}", chain.ThenFunc(handlers.ImageConvertHandler)).Methods("POST")
-	
+	router.Handle("/api/v1/image/convert", chain.ThenFunc(handlers.ImageConvertHandler)).Methods("POST")
+
 	// router.Handle("/api/v1/resize/image/{height}/{width}", chain.ThenFunc(handlers.ImageResizeHandler)).Methods("POST")
 	// router.Handle("/api/v1/crop/image/{height}/{width}/{x}/{y}", chain.ThenFunc(handlers.ImageCropHandler)).Methods("POST")
 	// router.Handle("/api/v1/zoom/image/{factor}", chain.ThenFunc(handlers.ImageZoomHandler)).Methods("POST")
@@ -54,7 +54,7 @@ func SetupRouter() *mux.Router {
 	// router.Handle("/api/v1/sepia/image/{percent}", chain.ThenFunc(handlers.ImageSepiaHandler)).Methods("POST")
 	// router.Handle("/api/v1/invert/image/", chain.ThenFunc(handlers.ImageInvertHandler)).Methods("POST")
 
-	// Debug endpoints	
+	// Debug endpoints
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
