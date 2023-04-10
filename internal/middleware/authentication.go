@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -11,7 +12,8 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check the request for valid authentication credentials
 		if !validAuthentication(r) {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			fmt.Fprintf(w, `{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials and/or verify you are making the request through the proper infrastructure (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
+			// http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
@@ -27,6 +29,13 @@ func validAuthentication(r *http.Request) bool {
 	// Example: check the "Authorization" header for a valid token
 	authHeader := r.Header.Get("X-Authorization")
 	if authHeader == "" {
+		return false
+	}
+
+	// Verify the request is coming from RapidAPI 
+	// (replace with whitelist of IPs supporting the included infrastructure)
+	RapidAPIHeader := r.Header.Get("X-RapidAPI-Proxy-Secret")
+	if RapidAPIHeader == "" {
 		return false
 	}
 
