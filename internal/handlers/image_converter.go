@@ -5,11 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	// "image"
-	// "image/color"
-	// "image/draw"
-	"image/png"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -28,6 +23,7 @@ import (
 // See https://godoc.org/github.com/disintegration/imaging#Format
 var formatMapping = map[string]imaging.Format{
 	"jpeg": imaging.JPEG,
+	"jpg":  imaging.JPEG,
 	"png":  imaging.PNG,
 	"gif":  imaging.GIF,
 	"bmp":  imaging.BMP,
@@ -86,11 +82,11 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Check image size, if over 2500x2500, reject the request
+	// Check image size, if over 3500x3500, reject the request
 	// and return an error.
-	if handler.Size > 4500*4500 {
+	if handler.Size > 3500*3500 {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Image size is too large"}`)
+		fmt.Fprintf(w, `{"status": "error", "message": "Image size is too large. Try using a smaller image or resize your image with our /resize/image endpoint"}`)
 		return
 	}
 
@@ -137,9 +133,6 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	//
-
 }
 
 // convertImage converts an image to a different format
@@ -150,13 +143,8 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 	// Load the image from byte slice
 	src, err := imaging.Decode(bytes.NewReader(buf))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
-
-	// Convert the image to the desired format
-	// dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	// draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.ZP, draw.Src)
-	// draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Over)
 
 	// // Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
@@ -169,19 +157,13 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 		// and return the converted image as a byte slice.
 		// Encode lossless webp
 		if err = webp.Encode(outputBuf, src, &webp.Options{Lossless: true}); err != nil {
-			log.Println(err)
-		}
-	} else if format == "png" {
-		// Save the converted image to the buffer in the desired format
-		err = png.Encode(outputBuf, src)
-		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to encode image to WEBP: %w", err)
 		}
 	} else {
 		// Save the converted image to the buffer in the desired format
 		err = imaging.Encode(outputBuf, src, formatMapping[format])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to encode image to %s: %w", format, err)
 		}
 	}
 
