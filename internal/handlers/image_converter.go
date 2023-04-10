@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
+	// "image"
+	// "image/color"
+	// "image/draw"
 	"image/png"
 	"log"
 	"math/rand"
@@ -39,10 +39,18 @@ var formatMapping = map[string]imaging.Format{
 // It converts an image to a different format. It accepts a POST request
 // with a form data file named "image" and a URL path with the from/to format values.
 func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
+
 	// Check if it's a POST request
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, `{"status": "error", "message": "Invalid request method"}`)
+		return
+	}
+
+	// Check if request size is too large
+	if r.ContentLength > config.MaxRequestSize() {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `{"status": "error", "message": "Request size is too large"}`)
 		return
 	}
 
@@ -77,6 +85,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	// Check image size, if over 2500x2500, reject the request
+	// and return an error.
+	if handler.Size > 4500*4500 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `{"status": "error", "message": "Image size is too large"}`)
+		return
+	}
 
 	// Create a buffer to store the file data
 	buf := make([]byte, handler.Size)
@@ -138,11 +154,11 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 	}
 
 	// Convert the image to the desired format
-	dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.ZP, draw.Src)
-	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Over)
+	// dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
+	// draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.ZP, draw.Src)
+	// draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Over)
 
-	// Create a buffer to store the converted image
+	// // Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
 
 	// If the image is being converted to WEBP,
@@ -152,18 +168,18 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 		// Convert the image to WEBP
 		// and return the converted image as a byte slice.
 		// Encode lossless webp
-		if err = webp.Encode(outputBuf, dst, &webp.Options{Lossless: true}); err != nil {
+		if err = webp.Encode(outputBuf, src, &webp.Options{Lossless: true}); err != nil {
 			log.Println(err)
 		}
 	} else if format == "png" {
 		// Save the converted image to the buffer in the desired format
-		err = png.Encode(outputBuf, dst)
+		err = png.Encode(outputBuf, src)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// Save the converted image to the buffer in the desired format
-		err = imaging.Encode(outputBuf, dst, formatMapping[format])
+		err = imaging.Encode(outputBuf, src, formatMapping[format])
 		if err != nil {
 			return nil, err
 		}
