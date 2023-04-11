@@ -2,24 +2,34 @@ package config
 
 import (
 	"context"
-	"fmt"
+	"log"
 
-	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/db"
-	"google.golang.org/api/option"
+	"cloud.google.com/go/firestore"
+	// "google.golang.org/api/option"
 )
 
-// InitFirestore initializes a Firestore client.
-func InitFirestore(ctx context.Context) (*db.Client, error) {
-	// TODO: Replace with your own Firebase project credentials file path
-	opt := option.WithCredentialsFile("<path/to/your/credentials/file>")
-	app, err := firebase.NewApp(ctx, nil, opt)
+var (
+	firestoreClient *firestore.Client
+)
+
+func init() {
+	// Initialize the Google Cloud Firestore client
+	ctx := context.Background()
+
+	// Set your Google Cloud Platform project ID
+	projectID := "webchest"
+
+	// Create Firestore client with project ID
+	// Additional Options (if needed due to deployment 
+	// outside of google cloud): option.WithCredentialsFile("path/to/credentials.json")
+	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing Firebase app: %v", err)
+		log.Fatalf("Failed to create Google Cloud Firestore client: %v", err)
 	}
-	client, err := app.Database(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing Firestore client: %v", err)
-	}
-	return client, nil
+	firestoreClient = client
+}
+
+// GetFirestoreClient returns the global Firestore client instance
+func GetFirestoreClient() *firestore.Client {
+	return firestoreClient
 }
