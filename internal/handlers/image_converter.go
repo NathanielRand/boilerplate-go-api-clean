@@ -31,64 +31,128 @@ var formatMapping = map[string]imaging.Format{
 	// "webp": imaging.WEBP,
 }
 
+type ImageConvertResponse struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	ImageURL string `json:"image_url"`
+}
+
 // ImageConvertHandler is a handler for the /convert/image/ endpoint.
 // It converts an image to a different format. It accepts a POST request
 // with a form data file named "image" and a URL path with the from/to format values.
 func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
+	// Set the response content type to JSON
+	w.Header().Set("Content-Type", "application/json")
 
 	// Check if it's a POST request
 	if r.Method != http.MethodPost {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Invalid request method"}`)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Invalid request method",
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Check if request size is too large
 	if r.ContentLength > config.MaxRequestSize() {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Request size is too large"}`)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Request size is too large",
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Parse the form data
 	err := r.ParseMultipartForm(32 << 20) // Max 32 MB file size
 	if err != nil {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Failed to parse form data. File size may be too large or the form data may be invalid", "error": "%s"}`, err)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to parse form data: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Get the format value from the form data
 	format := r.FormValue("format")
 	if format == "" {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Missing format value"}`)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Missing format value",
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Check if the URL from/to format value is supported
 	if !isFormatSupported(format) {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Unsupported image format"}`)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Unsupported image format",
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Get the uploaded file
 	file, handler, err := r.FormFile("image")
 	if err != nil {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Failed to get uploaded file", "error": "%s"}`, err)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to get uploaded file: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 	defer file.Close()
 
 	// Check image size, if over 3500x3500, reject the request
 	// and return an error.
-	if handler.Size > 3500*3500 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Image size is too large. Try using a smaller image or resize your image with our /resize/image endpoint"}`)
-		return
-	}
+	// if handler.Size > 3500*3500 {
+	// 	// Set the response status code to 400 Bad Request
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	// Create and populate the response object
+	// 	response := ImageConvertResponse{
+	// 		Status:   "error",
+	// 		Message:  "Image size is too large. Try using a smaller image or resize your image with our /resize/image endpoint",
+	// 		ImageURL: "",
+	// 	}
+	// 	// Encode the response object as JSON and write it to the response
+	// 	json.NewEncoder(w).Encode(response)
+	// 	return
+	// }
 
 	// Create a buffer to store the file data
 	buf := make([]byte, handler.Size)
@@ -96,41 +160,72 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	// Read the file data into the buffer
 	_, err = file.Read(buf)
 	if err != nil {
+		// Set the response status code to 400 Bad Request
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"status": "error", "message": "Failed to read file into buffer", "error": "%s"}`, err)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to read file into buffer: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Convert the image
 	convertedFile, err := convertImage(buf, format)
 	if err != nil {
+		// Set the response status code to 500 Internal Server Error
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"status": "error", "message": "Failed to convert image", "error": "%s"}`, err)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to convert image: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Store the converted image in cloud storage
 	// and return an authenticated URL to the converted image.
 	convertedImageURL, err := storeImage(convertedFile, format)
-
-	// Create and populate the response object
-	response := map[string]string{
-		"status":      "success",
-		"status_code": "200",
-		"image_url":   convertedImageURL,
-		"message":     "image  successfully converted to " + format + " format",
+	if err != nil {
+		// Set the response status code to 500 Internal Server Error
+		w.WriteHeader(http.StatusInternalServerError)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to store image: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
-	// Set the response content type to JSON
-	w.Header().Set("Content-Type", "application/json")
+	// Create and populate the response object
+	response := ImageConvertResponse{
+		Status:   "success",
+		Message:  "Image successfully converted to " + format + " format",
+		ImageURL: convertedImageURL,
+	}
 
 	// Encode the response object as JSON and write it to the response
 	// and return an error if the encoding fails.
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Set the response content type
-		w.Header().Set("Content-Type", "text/plain")
 		// Set the response status code to 500 Internal Server Error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		// Create and populate the response object
+		response := ImageConvertResponse{
+			Status:   "error",
+			Message:  "Failed to encode response as JSON: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 }
@@ -172,10 +267,6 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 
 // storeImage stores an image in cloud storage and returns an authenticated URL to the image
 func storeImage(buf []byte, newExt string) (string, error) {
-	// Simulate storing the image in cloud storage
-	// Here, we generate a random URL with a timestamp as an example
-	// In a real implementation, you would call the appropriate cloud storage service API to store the image
-
 	// Generate a random URL with timestamp
 	rand.Seed(time.Now().UnixNano())
 	randNum := rand.Intn(1000)
@@ -184,6 +275,10 @@ func storeImage(buf []byte, newExt string) (string, error) {
 
 	// Get the context
 	ctx := context.Background()
+
+	// Create a new context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel() // make sure to cancel the context to avoid potential resource leaks
 
 	// Bucket name
 	bucketName := "webchest_image_converter"
@@ -197,15 +292,27 @@ func storeImage(buf []byte, newExt string) (string, error) {
 		return "", err
 	}
 
-	// Call UploadImage on the cloudStorageRepo instance to upload the image to cloud storage
+	// Use a Goroutine to call UploadImage on the cloudStorageRepo instance to upload the image to cloud storage
 	// and return an authenticated URL to the image.
-	url, err := cloudStorageRepo.UploadImage(ctx, name, bytes.NewReader(buf))
-	if err != nil {
-		return "", err
-	}
+	ch := make(chan string, 1) // channel to receive the result of the Goroutine
+	go func() {
+		defer close(ch) // close the channel when the Goroutine completes
 
-	// Return the authenticated URL to the image
-	return url, nil
+		url, err := cloudStorageRepo.UploadImage(ctx, name, bytes.NewReader(buf))
+		if err != nil {
+			ch <- err.Error() // send the error to the channel
+			return
+		}
+		ch <- url // send the URL to the channel
+	}()
+
+	// Return the channel as a future that will contain the result of the Goroutine
+	select {
+	case result := <-ch:
+		return result, nil
+	case <-ctx.Done():
+		return "", ctx.Err() // return the context error if the Goroutine takes longer than the timeout
+	}
 }
 
 // isFormatSupported checks if a given image format is supported
