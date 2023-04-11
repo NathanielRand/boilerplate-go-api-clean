@@ -12,14 +12,29 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check the request for valid authentication credentials
 		if !validAuthentication(r) {
-			fmt.Fprintf(w, `{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials and/or verify you are making the request through the proper infrastructure (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
-			// http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			// If the request is not authenticated, return an error response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			// fmt.Fprintf(w, `{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials and/or verify you are making the request through the proper infrastructure (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
 			return
 		}
 
 		// If the request is authenticated, call the next middleware/handler in the chain
 		next.ServeHTTP(w, r)
 	})
+}
+
+// validSource checks the request for valid source credentials. 
+// If the request is not authenticated, the function returns false.
+func validSource(r *http.Request) bool {
+	// Implement your source logic here
+	// Example: check the "Authorization" header for a valid token
+	authHeader := r.Header.Get("X-Authorization")
+	if authHeader == "" {
+		return false
+	}
+
+	return true
 }
 
 // validAuthentication checks the request for valid authentication credentials.
