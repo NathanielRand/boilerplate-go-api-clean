@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -28,8 +27,8 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 // If the request is not authenticated, the function returns false.
 func validSource(r *http.Request) bool {
 	// Implement your source logic here
-	// Example: check the "Authorization" header for a valid token
-	authHeader := r.Header.Get("X-Authorization")
+	// Example: check the "Authorization" header for a valid source/referrer
+	authHeader := r.Header.Get("X-RapidAPI-Proxy-Secret")
 	if authHeader == "" {
 		return false
 	}
@@ -42,10 +41,10 @@ func validSource(r *http.Request) bool {
 func validAuthentication(r *http.Request) bool {
 	// Implement your authentication logic here
 	// Example: check the "Authorization" header for a valid token
-	authHeader := r.Header.Get("X-Authorization")
-	if authHeader == "" {
-		return false
-	}
+	// authHeader := r.Header.Get("X-Authorization")
+	// if authHeader == "" {
+	// 	return false
+	// }
 
 	// Verify the request is coming from RapidAPI 
 	// (replace with whitelist of IPs supporting the included infrastructure)
