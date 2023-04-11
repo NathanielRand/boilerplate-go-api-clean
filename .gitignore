@@ -1,0 +1,2 @@
+# Do not include environment variables in the repository
+.env

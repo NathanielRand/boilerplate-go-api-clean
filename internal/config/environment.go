@@ -1,7 +1,24 @@
+// config/config.go
+
 package config
 
-// LoadEnvironment loads the environment variables
-// and returns a struct with the values.
-func LoadEnvVars() {
-	return
+import (
+	"github.com/joho/godotenv"
+	"log"
+	"os"
+)
+
+// Load loads environment variables from a .env file
+func Load() error {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Error loading .env file:", err)
+		return err
+	}
+	return nil
+}
+
+// Get retrieves the value of an environment variable by name
+func Get(name string) string {
+	return os.Getenv(name)
 }
