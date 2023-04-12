@@ -15,5 +15,5 @@ gcloud builds submit --tag gcr.io/webchest/webchest-image-converter-api
 
 # Deploy new Docker Image to Cloud Run
 echo 'Deploying to gcloud run...'
-gcloud run deploy webchest-image-converter-api --image gcr.io/webchest/webchest-image-converter-api --platform managed --region us-east1 --memory '512Mi' --cpu '1' --min-instances '0' --allow-unauthenticated
+gcloud run deploy webchest-image-converter-api --image gcr.io/webchest/webchest-image-converter-api --platform managed --region us-east1 --memory '512Mi' --cpu '1' --allow-unauthenticated
 

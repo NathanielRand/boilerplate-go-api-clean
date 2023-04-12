@@ -3,9 +3,7 @@
 FROM golang:1.19.7-alpine3.16
 
 # Add environment variables
-# Add environment variables
 ENV RAPIDAPI_PROXY_SECRET="78f5b3e0-d3d0-11ed-bf92-43930995aeef"
-# ENV PORT="8080"
 
 ## Install C libraries for CGO if required
 RUN apk add --no-cache musl-dev
