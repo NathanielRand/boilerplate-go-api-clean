@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/NathanielRand/webchest-image-converter-api/internal/config"
+	// "github.com/NathanielRand/webchest-image-converter-api/internal/config"
 )
 
 // AuthenticationMiddleware is a middleware function that checks the request
@@ -51,7 +51,7 @@ func validSource(r *http.Request) bool {
 	// Example: X-RapidAPI-Proxy-Secret
 
 	// Replace comparison value with environment variable
-	if r.Header.Get("X-RapidAPI-Proxy-Secret") == config.Get("RAPIDAPI_PROXY_SECRET") {
+	if r.Header.Get("X-RapidAPI-Proxy-Secret") == "78f5b3e0-d3d0-11ed-bf92-43930995aeef" {
 		return true
 	} else {
 		return false
