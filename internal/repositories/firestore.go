@@ -35,10 +35,25 @@ func (r *FirestoreRepository) CustomAction(ctx context.Context, userID string, a
 	}
 }
 
+// // CreateUser creates a new user in Firestore.
+// func (r *FirestoreRepository) CreateUser(ctx context.Context, userRealIP string) (*models.User, error) {
+// 	// Create a new user
+// 	user := models.NewUser(userRealIP, username, key, forwaredIP, forwaredHost, subscription, affiliation, email, platform, quota, rateLimit)
+
+// 	// Save the user to Firestore
+// 	ref := r.client.NewRef(fmt.Sprintf("api-image-converter-users/%s", user.ID))
+// 	if err := ref.Set(ctx, user); err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Return the user
+// 	return user, nil
+// }
+
 // GetUserByID retrieves a user by ID from Firestore.
 func (r *FirestoreRepository) GetUserByID(ctx context.Context, userID string) (*models.User, error) {
 	var user models.User
-	ref := r.client.NewRef(fmt.Sprintf("users/%s", userID))
+	ref := r.client.NewRef(fmt.Sprintf("api-image-converter-users/%s", userID))
 	if err := ref.Get(ctx, &user); err != nil {
 		return nil, err
 	}
@@ -46,14 +61,53 @@ func (r *FirestoreRepository) GetUserByID(ctx context.Context, userID string) (*
 	return &user, nil
 }
 
-// CheckUserPlan checks the plan of a user in Firestore.
-func (r *FirestoreRepository) CheckUserPlan(ctx context.Context, userID string) (string, error) {
+// GetUserByEmail retrieves a user by email from Firestore.
+func (r *FirestoreRepository) GetUserByEmail(ctx context.Context, userEmail string) (*models.User, error) {
+	var user models.User
+	ref := r.client.NewRef("api-image-converter-users")
+	if err := ref.OrderByChild("email").EqualTo(userEmail).LimitToFirst(1).Get(ctx, &user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetUserByAPIKey retrieves a user by API key from Firestore.
+func (r *FirestoreRepository) GetUserByAPIKey(ctx context.Context, userAPIKey string) (*models.User, error) {
+	var user models.User
+	ref := r.client.NewRef("api-image-converter-users")
+	if err := ref.OrderByChild("api_key").EqualTo(userAPIKey).LimitToFirst(1).Get(ctx, &user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetUserByRealIP retrieves a user by real IP from Firestore.
+func (r *FirestoreRepository) GetUserByRealIP(ctx context.Context, userRealIP string) (*models.User, error) {
+	var user models.User
+	ref := r.client.NewRef("api-image-converter-users")
+	if err := ref.OrderByChild("real_ip").EqualTo(userRealIP).LimitToFirst(1).Get(ctx, &user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// CheckUserRealIP checks the real IP of a user in Firestore.
+func (r *FirestoreRepository) CheckUserRealIP(ctx context.Context, userRealIP string) (string, error) {
+	user, err := r.GetUserByRealIP(ctx, userRealIP)
+	if err != nil {
+		return "", err
+	}
+	return user.ID, nil
+}
+
+// CheckUserPlan checks the subscription of a user in Firestore.
+func (r *FirestoreRepository) CheckUserSubscription(ctx context.Context, userID string) (string, error) {
 	user, err := r.GetUserByID(ctx, userID)
 	if err != nil {
 		return "", err
 	}
 
-	return user.Plan, nil
+	return user.Subscription, nil
 }
 
 // CheckUserQuota checks the quota of a user in Firestore.
@@ -77,18 +131,18 @@ func (r *FirestoreRepository) CheckUserRateLimit(ctx context.Context, userID str
 }
 
 // CheckUserReferrer checks the referrer of a user in Firestore.
-func (r *FirestoreRepository) CheckUserReferrer(ctx context.Context, userID string) (string, error) {
-	user, err := r.GetUserByID(ctx, userID)
-	if err != nil {
-		return "", err
-	}
+// func (r *FirestoreRepository) CheckUserReferrer(ctx context.Context, userID string) (string, error) {
+// 	user, err := r.GetUserByID(ctx, userID)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	return user.Referrer, nil
-}
+// 	return user.Referrer, nil
+// }
 
 // UpdateUser updates a user in Firestore.
 func (r *FirestoreRepository) UpdateUser(ctx context.Context, userID string, user *models.User) error {
-	ref := r.client.NewRef(fmt.Sprintf("users/%s", userID))
+	ref := r.client.NewRef(fmt.Sprintf("api-image-converter-users/%s", userID))
 	if err := ref.Set(ctx, user); err != nil {
 		return err
 	}
@@ -146,14 +200,14 @@ func (r *FirestoreRepository) UpdateUserSpend(ctx context.Context, userID string
 	return nil
 }
 
-// UpdateUserLoyalty updates the loyalty status of a user in Firestore.
-func (r *FirestoreRepository) UpdateUserLoyalty(ctx context.Context, userID string, loyaltyStatus string) error {
+// UpdateUserLoyalty updates the loyalty score status of a user in Firestore.
+func (r *FirestoreRepository) UpdateUserLoyaltyScore(ctx context.Context, userID string, loyaltyStatus string) error {
 	user, err := r.GetUserByID(ctx, userID)
 	if err != nil {
 		return err
 	}
 
-	user.Loyalty = loyaltyStatus
+	user.LoyaltyScore = loyaltyStatus
 
 	err = r.UpdateUser(ctx, userID, user)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	// "github.com/NathanielRand/webchest-image-converter-api/internal/config"
+	// "github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 )
 
 // AuthenticationMiddleware is a middleware function that checks the request
@@ -14,16 +15,9 @@ import (
 // the middleware returns an error response.
 func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// if !validSources(r) {
-		// 	// If the request is not authenticated, return an error response
-		// 	w.Header().Set("Content-Type", "application/json")
-		// 	w.WriteHeader(http.StatusUnauthorized)
-		// 	json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channels (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
-		// 	return
-		// }
-
+		// Check the request for valid source/referrer credentials
 		if !validSource(r) {
-			// If the request is not authenticated, return an error response
+			// If the request is not from a valid source, return an error response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channels (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
@@ -35,9 +29,30 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 			// If the request is not authenticated, return an error response
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials,"}`)
+			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials."}`)
 			return
 		}
+
+		// Check if the user exists in the database, and if the user is active
+		// otherwise, create a new user in the database and continue,
+		// if !userExists(r) {
+		// 	// Get the user API key from the request headers
+		// 	userRealIP := r.Header.Get("X-RapidAPI-Real-IP")
+
+		// 	// Get a Firestore client
+		// 	firestoreClient, err := config.GetFirestoreClient()
+
+		// 	// if the user does not exist, create a new user in the database
+		// 	// and continue
+		// 	user, err := repositories.NewFirestoreRepository(firestoreClient).CreateUser(r.Context(), userRealIP)
+		// 	if err != nil {
+		// 		// If there is an error creating the user, return an error response
+		// 		w.Header().Set("Content-Type", "application/json")
+		// 		w.WriteHeader(http.StatusInternalServerError)
+		// 		json.NewEncoder(w).Encode(`{"status": "error", "message": "Error creating user in database."}`)
+		// 		return
+		// 	}
+		// }
 
 		// If the request is authenticated, call the next middleware/handler in the chain
 		next.ServeHTTP(w, r)
