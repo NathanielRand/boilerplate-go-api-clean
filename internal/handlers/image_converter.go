@@ -34,11 +34,11 @@ type ImageConvertResponse struct {
 // }
 
 // Create a JSON encoder pool
-var jsonEncoderPool = sync.Pool{
-	New: func() interface{} {
-		return json.NewEncoder(nil)
-	},
-}
+// var jsonEncoderPool = sync.Pool{
+// 	New: func() interface{} {
+// 		return json.NewEncoder(nil)
+// 	},
+// }
 
 // formatMapping is a map of supported image formats.
 // The key is the format name and the value is the imaging.Format value.
