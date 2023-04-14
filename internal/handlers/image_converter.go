@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	// Internal
@@ -17,6 +18,27 @@ import (
 	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 )
+
+// ImageConvertResponse is the response object for the /convert/image/ endpoint.
+type ImageConvertResponse struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	ImageURL string `json:"image_url"`
+}
+
+// Create a buffer pool with a maximum buffer size of 32MB
+// var bufPool = sync.Pool{
+// 	New: func() interface{} {
+// 		return bytes.NewBuffer(make([]byte, 0, 32<<20))
+// 	},
+// }
+
+// Create a JSON encoder pool
+var jsonEncoderPool = sync.Pool{
+	New: func() interface{} {
+		return json.NewEncoder(nil)
+	},
+}
 
 // formatMapping is a map of supported image formats.
 // The key is the format name and the value is the imaging.Format value.
@@ -31,10 +53,14 @@ var formatMapping = map[string]imaging.Format{
 	// "webp": imaging.WEBP,
 }
 
-type ImageConvertResponse struct {
-	Status   string `json:"status"`
-	Message  string `json:"message"`
-	ImageURL string `json:"image_url"`
+// isFormatSupported checks if a given image format is supported
+func isFormatSupported(format string) bool {
+	switch format {
+	case "jpeg", "jpg", "png", "gif", "bmp", "tiff":
+		return true
+	default:
+		return false
+	}
 }
 
 // ImageConvertHandler is a handler for the /convert/image/ endpoint.
@@ -56,6 +82,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Encode the response object as JSON and write it to the response
 		json.NewEncoder(w).Encode(response)
+
 		return
 	}
 
@@ -73,6 +100,17 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+	// Get a buffer from the buffer pool
+	// buf := bufPool.Get().(*bytes.Buffer)
+	// defer bufPool.Put(buf)
+
+	// // Read the request body into the buffer
+	// buf.Reset()
+	// _, err := io.Copy(buf, r.Body)
+	// if err != nil {
+	// 	// Handle error
+	// }
 
 	// Parse the form data
 	err := r.ParseMultipartForm(32 << 20) // Max 32 MB file size
@@ -316,17 +354,4 @@ func storeImage(buf []byte, newExt string) (string, error) {
 	case <-ctx.Done():
 		return "", ctx.Err() // return the context error if the Goroutine takes longer than the timeout
 	}
-}
-
-// isFormatSupported checks if a given image format is supported
-func isFormatSupported(format string) bool {
-	// Supported image formats
-	supportedFormats := []string{"webp", "jpg", "jpeg", "png", "bmp", "gif", "tiff"}
-	// Check if the format is supported
-	for _, f := range supportedFormats {
-		if f == format {
-			return true
-		}
-	}
-	return false
 }
