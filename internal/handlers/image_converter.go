@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
-	"sync"
 	"time"
 
 	// Internal
@@ -26,19 +26,21 @@ type ImageConvertResponse struct {
 	ImageURL string `json:"image_url"`
 }
 
-// Create a buffer pool with a maximum buffer size of 32MB
-// var bufPool = sync.Pool{
-// 	New: func() interface{} {
-// 		return bytes.NewBuffer(make([]byte, 0, 32<<20))
-// 	},
-// }
+// MaxRequestSize is the maximum request size in bytes.
+const (
+	MaxRequestSize = 32 << 20 // 32 MB
+	MaxImageSize   = 3500 * 3500
+)
 
-// Create a JSON encoder pool
-// var jsonEncoderPool = sync.Pool{
-// 	New: func() interface{} {
-// 		return json.NewEncoder(nil)
-// 	},
-// }
+// Error messages
+var (
+	ErrInvalidRequestMethod = errors.New("Invalid request method")
+	ErrRequestSizeTooLarge  = errors.New("Request size is too large")
+	ErrParseFormDataFailed  = errors.New("Failed to parse form data")
+	ErrMissingFormatValue   = errors.New("Missing format value")
+	ErrUnsupportedFormat    = errors.New("Unsupported image format")
+	ErrFailedToGetFile      = errors.New("Failed to get uploaded file")
+)
 
 // formatMapping is a map of supported image formats.
 // The key is the format name and the value is the imaging.Format value.
@@ -50,13 +52,14 @@ var formatMapping = map[string]imaging.Format{
 	"gif":  imaging.GIF,
 	"bmp":  imaging.BMP,
 	"tiff": imaging.TIFF,
-	// "webp": imaging.WEBP,
+	// webp is not supported by imaging.Format
+	// check implementation below for webp support.
 }
 
 // isFormatSupported checks if a given image format is supported
 func isFormatSupported(format string) bool {
 	switch format {
-	case "jpeg", "jpg", "png", "gif", "bmp", "tiff":
+	case "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp":
 		return true
 	default:
 		return false
@@ -67,13 +70,19 @@ func isFormatSupported(format string) bool {
 // It converts an image to a different format. It accepts a POST request
 // with a form data file named "image" and a URL path with the from/to format values.
 func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
+	// Create a new instance of ResponseWriterWrapper
+	// and pass the response writer to it.
+	rw := &ResponseWriterWrapper{
+		w: w,
+	}
+
 	// Set the response content type to JSON
-	w.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Content-Type", "application/json")
 
 	// Check if it's a POST request
 	if r.Method != http.MethodPost {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -81,15 +90,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
-
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
 	// Check if request size is too large
-	if r.ContentLength > config.MaxRequestSize() {
+	if r.ContentLength > MaxRequestSize {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -97,26 +105,15 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
-	// Get a buffer from the buffer pool
-	// buf := bufPool.Get().(*bytes.Buffer)
-	// defer bufPool.Put(buf)
-
-	// // Read the request body into the buffer
-	// buf.Reset()
-	// _, err := io.Copy(buf, r.Body)
-	// if err != nil {
-	// 	// Handle error
-	// }
-
 	// Parse the form data
-	err := r.ParseMultipartForm(32 << 20) // Max 32 MB file size
+	err := r.ParseMultipartForm(MaxRequestSize) // Max 32 MB file size
 	if err != nil {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -124,7 +121,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
@@ -132,7 +129,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	format := r.FormValue("format")
 	if format == "" {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -140,14 +137,14 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
-	// Check if the URL from/to format value is supported
+	// Check if the form data "format" value is supported
 	if !isFormatSupported(format) {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -155,7 +152,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
@@ -163,7 +160,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	file, handler, err := r.FormFile("image")
 	if err != nil {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -171,7 +168,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 	defer file.Close()
@@ -199,7 +196,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = file.Read(buf)
 	if err != nil {
 		// Set the response status code to 400 Bad Request
-		w.WriteHeader(http.StatusBadRequest)
+		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -207,7 +204,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
@@ -215,7 +212,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	convertedFile, err := convertImage(buf, format)
 	if err != nil {
 		// Set the response status code to 500 Internal Server Error
-		w.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -223,7 +220,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
@@ -232,7 +229,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	convertedImageURL, err := storeImage(convertedFile, format)
 	if err != nil {
 		// Set the response status code to 500 Internal Server Error
-		w.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -240,7 +237,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 
@@ -253,9 +250,9 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Encode the response object as JSON and write it to the response
 	// and return an error if the encoding fails.
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(rw).Encode(response); err != nil {
 		// Set the response status code to 500 Internal Server Error
-		w.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
 		response := ImageConvertResponse{
 			Status:   "error",
@@ -263,7 +260,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 }
