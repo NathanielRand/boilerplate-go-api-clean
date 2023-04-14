@@ -2,10 +2,8 @@ package middleware
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
-
 	// "github.com/NathanielRand/webchest-image-converter-api/internal/config"
 	// "github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 )
@@ -19,19 +17,17 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 		if !validSource(r) {
 			// If the request is not from a valid source, return an error response
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channels (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
+			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channel (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
 			return
 		}
 
 		// Check the request for valid authentication credentials
-		if !validAuthentication(r) {
-			// If the request is not authenticated, return an error response
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials."}`)
-			return
-		}
+		// if !validAuthentication(r) {
+		// 	// If the request is not authenticated, return an error response
+		// 	w.Header().Set("Content-Type", "application/json")
+		// 	json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials."}`)
+		// 	return
+		// }
 
 		// Check if the user exists in the database, and if the user is active
 		// otherwise, create a new user in the database and continue,
@@ -59,45 +55,32 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// validSource checks the request for valid source/referrer credentials.
 func validSource(r *http.Request) bool {
-	// Check if the request is coming from a valid source
-	// via the request headers.
-	// Example: X-RapidAPI-Proxy-Secret
-
-	// Replace comparison value with environment variable
-	if r.Header.Get("X-RapidAPI-Proxy-Secret") == "78f5b3e0-d3d0-11ed-bf92-43930995aeef" {
-		return true
-	} else {
-		return false
-	}
-}
-
-// validSources checks the request for valid sources/referrers credentials.
-func validSources(r *http.Request) bool {
-	// Define a map of valid sources
+	// Define a map of valid source keys and values
 	validSources := map[string]string{
-		"X-RapidAPI-Proxy-Secret": "78f5b3e0-d3d0-11ed-bf92-43930995aeef",
+		"x-rapidapi-proxy-secret": "78f5b3e0-d3d0-11ed-bf92-43930995aeef",
+		// Add more valid source keys and values here
 	}
 
-	// Check the request for valid source credentials and return true if it's valid, false otherwise
-	// Loop through the request headers and check for a valid source/referrer
-	validSourceFound := false
-	for key := range r.Header {
-		value := r.Header.Get(key) // Get the value of the header
-		fmt.Println("Checking request header: " + key + " = " + value + " ")
-		// Check if the request header matches a valid source
-		if validSourceValue, ok := validSources[key]; ok {
-			// Check if the request header value matches a valid source
-			if strings.EqualFold(value, validSourceValue) {
-				fmt.Println("Valid source found: " + key + " = " + value)
-				validSourceFound = true
+	// Iterate through the request headers
+	for key, values := range r.Header {
+		// Convert the key to lowercase
+		keyLower := strings.ToLower(key)
+		// Check if the key exists in the valid sources map
+		if validValue, ok := validSources[keyLower]; ok {
+			// Iterate through the values in the header
+			for _, value := range values {
+				// Convert the header value and valid value to lowercase
+				valueLower := strings.ToLower(value)
+				validValueLower := strings.ToLower(validValue)
+				// Check if any of the values match the valid value
+				if valueLower == validValueLower {
+					return true
+				}
 			}
 		}
 	}
-
-	// Return true if a valid source is found, false otherwise
-	return validSourceFound
+	return false
 }
 
 // validAuthentication checks the request for valid authentication credentials.

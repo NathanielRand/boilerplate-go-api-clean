@@ -244,6 +244,9 @@ func convertImage(buf []byte, format string) ([]byte, error) {
 	// // Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
 
+	// DEFINITELY NOT THE BEST WAY TO DO THIS. vvvvv
+	// REFACTOR THIS LATER.
+
 	// If the image is being converted to WEBP,
 	// use chai2010/webp to convert the image to WEBP
 	// and return the converted image as a byte slice.
