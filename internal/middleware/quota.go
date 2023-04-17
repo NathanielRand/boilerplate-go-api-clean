@@ -30,7 +30,7 @@ func QuotaMiddleware(next http.Handler) http.Handler {
 		// Get or create the user's quota information
 		userQuota, _ := userQuotas.LoadOrStore(userID, &UserQuota{
 			Usage:  0,
-			Limit:  10000, // Replace with your desired limit
+			Limit:  100000000, // Replace with your desired limit
 			Last:   time.Now(),
 			Tokens: 5, // Replace with your desired initial tokens
 		})

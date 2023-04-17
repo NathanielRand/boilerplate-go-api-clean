@@ -30,7 +30,7 @@ func RateLimitingMiddleware(next http.Handler) http.Handler {
 		// Get or create the endpoint's rate limiter
 		endpointLimiter, _ := endpointLimiters.LoadOrStore(endpoint, &RateLimiter{
 			Usage: 0,
-			Limit: 100, // Replace with new limit
+			Limit: 32, // Replace with new limit
 			Last:  time.Now(),
 		})
 

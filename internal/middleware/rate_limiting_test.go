@@ -39,8 +39,8 @@ func TestRateLimitingMiddleware_RateLimitExceeded(t *testing.T) {
 
 	// Create a rate limiter with a usage that exceeds the limit
 	rateLimiter := &RateLimiter{
-		Usage: 101,
-		Limit: 100,
+		Usage: 33,
+		Limit: 32,
 		Last:  time.Now().Add(-1 * time.Minute),
 	}
 

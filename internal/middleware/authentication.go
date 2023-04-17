@@ -58,7 +58,7 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 func validSource(r *http.Request) bool {
 	// Define a map of valid source keys and values
 	validSources := map[string]string{
-		"x-rapidapi-proxy-secret": "78f5b3e0-d3d0-11ed-bf92-43930995aeef",
+		"x-rapidapi-proxy-secret": "a8cc0e10-dd54-11ed-a321-315a0260571a",
 		// Add more valid source keys and values here
 	}
 
