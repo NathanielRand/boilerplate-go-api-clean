@@ -2,10 +2,17 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/NathanielRand/webchest-image-converter-api/internal/config"
+	"github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
+	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 )
 
@@ -15,19 +22,29 @@ type ImageResizeResponse struct {
 	ImageURL string `json:"image_url"`
 }
 
-// MaxRequestSize is the maximum request size in bytes.
-const (
-	MaxRequestSize = 32 << 20 // 32 MB
-	MaxImageSize   = 3500 * 3500
-)
+// getImageFormat returns the image format of the file
+func getImageFormat(filename string) (string, error) {
+	// Get the file extension
+	extension := filename[len(filename)-3:]
 
-// isFormatSupported checks if a given image format is supported
-func isFormatSupported(format string) bool {
-	switch format {
-	case "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp":
-		return true
+	// Check the file extension
+	switch extension {
+	case "jpg":
+		return "jpg", nil
+	case "peg":
+		return "jpg", nil
+	case "png":
+		return "png", nil
+	case "ebp":
+		return "webp", nil
+	case "bmp":
+		return "bmp", nil
+	case "gif":
+		return "gif", nil
+	case "iff":
+		return "tiff", nil
 	default:
-		return false
+		return "", fmt.Errorf("Invalid file extension: %s", extension)
 	}
 }
 
@@ -88,15 +105,15 @@ func ImageResizeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the format value from the form data
-	format := r.FormValue("format")
-	if format == "" {
+	// Get the height value from the form data
+	height := r.FormValue("height")
+	if height == "" {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageResizeResponse{
 			Status:   "error",
-			Message:  "Missing format value",
+			Message:  "Missing height value",
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
@@ -104,14 +121,15 @@ func ImageResizeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the form data "format" value is supported
-	if !isFormatSupported(format) {
+	// Get the width value from the form data
+	width := r.FormValue("width")
+	if width == "" {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
 		response := ImageResizeResponse{
 			Status:   "error",
-			Message:  "Unsupported image format",
+			Message:  "Missing width value",
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
@@ -136,6 +154,9 @@ func ImageResizeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// Get the file format
+	format, err := getImageFormat(handler.Filename)
+
 	// Create a buffer to store the file data
 	buf := make([]byte, handler.Size)
 
@@ -155,42 +176,160 @@ func ImageResizeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create and populate the response object
-	response := map[string]string{"message": "Hello, you reached the Image Resize handler!"}
+	// Resize the image
+	resizedFile, format, err := resizeImage(buf, format, height, width)
+	if err != nil {
+		// Set the response status code to 500 Internal Server Error
+		rw.WriteHeader(http.StatusInternalServerError)
+		// Create and populate the response object
+		response := ImageResizeResponse{
+			Status:   "error",
+			Message:  "Failed to resize image: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(rw).Encode(response)
+		return
+	}
 
-	// Set the response content type to JSON
-	w.Header().Set("Content-Type", "application/json")
+	// Store the converted image in cloud storage
+	// and return an authenticated URL to the converted image.
+	convertedImageURL, err := storeResizedImage(resizedFile, format)
+	if err != nil {
+		// Set the response status code to 500 Internal Server Error
+		rw.WriteHeader(http.StatusInternalServerError)
+		// Create and populate the response object
+		response := ImageResizeResponse{
+			Status:   "error",
+			Message:  "Failed to store image: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(rw).Encode(response)
+		return
+	}
+
+	// Create and populate the response object
+	response := ImageResizeResponse{
+		Status:   "success",
+		Message:  "Image successfully resized",
+		ImageURL: convertedImageURL,
+	}
 
 	// Encode the response object as JSON and write it to the response
 	// and return an error if the encoding fails.
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Set the response content type
-		w.Header().Set("Content-Type", "text/plain")
+	if err := json.NewEncoder(rw).Encode(response); err != nil {
 		// Set the response status code to 500 Internal Server Error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusInternalServerError)
+		// Create and populate the response object
+		response := ImageResizeResponse{
+			Status:   "error",
+			Message:  "Failed to encode response as JSON: " + err.Error(),
+			ImageURL: "",
+		}
+		// Encode the response object as JSON and write it to the response
+		json.NewEncoder(rw).Encode(response)
 		return
 	}
 }
 
-
 // resizeImage converts an image to a different format
-func resizeImage(buf []byte, height string, width string) ([]byte, error) {
+func resizeImage(buf []byte, format string, height string, width string) ([]byte, string, error) {
 	// Use disintegration/imaging to resize the image type
 	// and return the resized image as a byte slice.
 
 	// Load the image from byte slice
 	src, err := imaging.Decode(bytes.NewReader(buf))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		return nil, "", fmt.Errorf("failed to decode image: %w", err)
 	}
+
+	// Print the image dimensions
+	fmt.Printf("Image dimensions: %dx%d", src.Bounds().Dx(), src.Bounds().Dy())
+
+	// Parse the height as integer
+	heightInt, err := strconv.Atoi(height)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse height: %w", err)
+	}
+
+	// Parse the width as integer
+	widthInt, err := strconv.Atoi(width)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse width: %w", err)
+	}
+
+	// Resize the image with the provided dimensions
+	resized := imaging.Resize(src, widthInt, heightInt, imaging.Lanczos)
 
 	// Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
 
-	// Resize the image with the provided dimensions
-	// using the imaging package
-	// TODO: Add support for custom dimensions
+	// Check the image format and encode
+	// the image to the buffer with the appropriate format.
+	if format == "webp" {
+		// Encode the image using chai2010/webp
+		if err = webp.Encode(outputBuf, resized, &webp.Options{Lossless: true}); err != nil {
+			return nil, "", fmt.Errorf("failed to encode image to WEBP: %w", err)
+		}
+	} else {
+		// Encode the image using disintegration/imaging
+		err = imaging.Encode(outputBuf, resized, formatMapping[format])
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to encode image to %s: %w", format, err)
+		}
+	}
 
 	// Return the resized image as a byte slice
-	return outputBuf.Bytes(), nil
+	return outputBuf.Bytes(), format, nil
+}
+
+// storeImage stores an image in cloud storage and returns an authenticated URL to the image
+func storeResizedImage(buf []byte, newExt string) (string, error) {
+	// Generate a random URL with timestamp
+	rand.Seed(time.Now().UnixNano())
+	randNum := rand.Intn(1000)
+	timestamp := time.Now().Format("20060102150405")
+	name := fmt.Sprintf("webchest_%d_image_%s.%s", randNum, timestamp, newExt)
+
+	// Get the context
+	ctx := context.Background()
+
+	// Create a new context with a timeout of 10 seconds
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel() // make sure to cancel the context to avoid potential resource leaks
+
+	// Bucket name
+	bucketName := "webchest_image_resizer"
+
+	// Get the global storage client instance
+	client := config.GetStorageClient()
+
+	// Create a new instance of CloudStorageRepository
+	cloudStorageRepo, err := repositories.NewCloudStorageRepository(bucketName, client)
+	if err != nil {
+		return "", err
+	}
+
+	// Use a Goroutine to call UploadImage on the cloudStorageRepo instance to upload the image to cloud storage
+	// and return an authenticated URL to the image.
+	ch := make(chan string, 1) // channel to receive the result of the Goroutine
+	go func() {
+		defer close(ch) // close the channel when the Goroutine completes
+
+		url, err := cloudStorageRepo.UploadImage(ctx, name, bytes.NewReader(buf))
+		if err != nil {
+			ch <- err.Error() // send the error to the channel
+			return
+		}
+		ch <- url // send the URL to the channel
+	}()
+
+	// Return the channel as a future that will contain the result of the Goroutine
+	select {
+	case result := <-ch:
+		return result, nil
+	case <-ctx.Done():
+		return "", ctx.Err() // return the context error if the Goroutine takes longer than the timeout
+	}
 }
