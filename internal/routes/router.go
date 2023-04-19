@@ -37,6 +37,7 @@ func SetupRouter() *mux.Router {
 	// User endpoints
 	router.Handle("/api/v1/image/convert", chain.ThenFunc(handlers.ImageConvertHandler)).Methods("POST")
 	router.Handle("/api/v1/image/resize", chain.ThenFunc(handlers.ImageResizeHandler)).Methods("POST")
+	router.Handle("/api/v1/image/crop", chain.ThenFunc(handlers.ImageCropHandler)).Methods("POST")
 
 	// router.Handle("/api/v1/resize/image/{height}/{width}", chain.ThenFunc(handlers.ImageResizeHandler)).Methods("POST")
 	// router.Handle("/api/v1/crop/image/{height}/{width}/{x}/{y}", chain.ThenFunc(handlers.ImageCropHandler)).Methods("POST")

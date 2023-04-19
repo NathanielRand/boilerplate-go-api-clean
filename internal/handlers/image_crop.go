@@ -4,59 +4,27 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
-	// Internal
 	"github.com/NathanielRand/webchest-image-converter-api/internal/config"
 	"github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
-
-	// External
 	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 )
 
-// ImageConvertResponse is the response object for the /convert/image/ endpoint.
-type ImageConvertResponse struct {
+type ImageCropResponse struct {
 	Status   string `json:"status"`
 	Message  string `json:"message"`
 	ImageURL string `json:"image_url"`
 }
 
-// MaxRequestSize is the maximum request size in bytes.
-const (
-	MaxRequestSize = 32 << 20 // 32 MB
-	MaxImageSize   = 3500 * 3500
-)
-
-// Error messages
-var (
-	ErrInvalidRequestMethod = errors.New("Invalid request method")
-	ErrRequestSizeTooLarge  = errors.New("Request size is too large")
-	ErrParseFormDataFailed  = errors.New("Failed to parse form data")
-	ErrMissingFormatValue   = errors.New("Missing format value")
-	ErrUnsupportedFormat    = errors.New("Unsupported image format")
-	ErrFailedToGetFile      = errors.New("Failed to get uploaded file")
-)
-
-// isFormatSupported checks if a given image format is supported
-func isFormatSupported(format string) bool {
-	switch format {
-	case "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp":
-		return true
-	default:
-		return false
-	}
-}
-
-// ImageConvertHandler is a handler for the /convert/image/ endpoint.
-// It converts an image to a different format. It accepts a POST request
-// with a form data file named "image" and a URL path with the from/to format values.
-func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
-	// Create a new instance of ResponseWriterWrapper
+// ImageResizeHandler is a handler for the /image-resize endpoint.
+func ImageCropHandler(w http.ResponseWriter, r *http.Request) {
+	// Your API logic goes here// Create a new instance of ResponseWriterWrapper
 	// and pass the response writer to it.
 	rw := &ResponseWriterWrapper{
 		w: w,
@@ -70,7 +38,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Invalid request method",
 			ImageURL: "",
@@ -85,7 +53,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Request size is too large",
 			ImageURL: "",
@@ -101,7 +69,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Failed to parse form data: " + err.Error(),
 			ImageURL: "",
@@ -111,15 +79,15 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the format value from the form data
-	format := r.FormValue("format")
-	if format == "" {
+	// Get the height value from the form data
+	height := r.FormValue("height")
+	if height == "" {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
-			Message:  "Missing format value",
+			Message:  "Missing height value",
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
@@ -127,14 +95,15 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the form data "format" value is supported
-	if !isFormatSupported(format) {
+	// Get the width value from the form data
+	width := r.FormValue("width")
+	if width == "" {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
-			Message:  "Unsupported image format",
+			Message:  "Missing width value",
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
@@ -148,7 +117,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Failed to get uploaded file: " + err.Error(),
 			ImageURL: "",
@@ -159,21 +128,8 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Check image size, if over 3500x3500, reject the request
-	// and return an error.
-	// if handler.Size > 3500*3500 {
-	// 	// Set the response status code to 400 Bad Request
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	// Create and populate the response object
-	// 	response := ImageConvertResponse{
-	// 		Status:   "error",
-	// 		Message:  "Image size is too large. Try using a smaller image or resize your image with our /resize/image endpoint",
-	// 		ImageURL: "",
-	// 	}
-	// 	// Encode the response object as JSON and write it to the response
-	// 	json.NewEncoder(w).Encode(response)
-	// 	return
-	// }
+	// Get the file format
+	format, err := getImageFormat(handler.Filename)
 
 	// Create a buffer to store the file data
 	buf := make([]byte, handler.Size)
@@ -184,7 +140,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 400 Bad Request
 		rw.WriteHeader(http.StatusBadRequest)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Failed to read file into buffer: " + err.Error(),
 			ImageURL: "",
@@ -194,15 +150,15 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert the image
-	convertedFile, err := convertImage(buf, format)
+	// Resize the image
+	resizedFile, format, err := cropImage(buf, format, height, width)
 	if err != nil {
 		// Set the response status code to 500 Internal Server Error
 		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
-			Message:  "Failed to convert image: " + err.Error(),
+			Message:  "Failed to resize image: " + err.Error(),
 			ImageURL: "",
 		}
 		// Encode the response object as JSON and write it to the response
@@ -212,12 +168,12 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store the converted image in cloud storage
 	// and return an authenticated URL to the converted image.
-	convertedImageURL, err := storeImage(convertedFile, format)
+	convertedImageURL, err := storeCroppedImage(resizedFile, format)
 	if err != nil {
 		// Set the response status code to 500 Internal Server Error
 		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Failed to store image: " + err.Error(),
 			ImageURL: "",
@@ -228,9 +184,9 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create and populate the response object
-	response := ImageConvertResponse{
+	response := ImageCropResponse{
 		Status:   "success",
-		Message:  "Image successfully converted to " + format + " format",
+		Message:  "Image successfully resized",
 		ImageURL: convertedImageURL,
 	}
 
@@ -240,7 +196,7 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 		// Set the response status code to 500 Internal Server Error
 		rw.WriteHeader(http.StatusInternalServerError)
 		// Create and populate the response object
-		response := ImageConvertResponse{
+		response := ImageCropResponse{
 			Status:   "error",
 			Message:  "Failed to encode response as JSON: " + err.Error(),
 			ImageURL: "",
@@ -251,46 +207,65 @@ func ImageConvertHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// convertImage converts an image to a different format
-func convertImage(buf []byte, format string) ([]byte, error) {
-	// Use disintegration/imaging to convert the image type
-	// and return the converted image as a byte slice.
+// resizeImage converts an image to a different format
+func cropImage(buf []byte, format string, height string, width string) ([]byte, string, error) {
+	// Use disintegration/imaging to resize the image type
+	// and return the resized image as a byte slice.
 
 	// Load the image from byte slice
 	src, err := imaging.Decode(bytes.NewReader(buf))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		return nil, "", fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// // Create a buffer to store the converted image
+	// Print the image dimensions
+	fmt.Printf("Image dimensions: %dx%d", src.Bounds().Dx(), src.Bounds().Dy())
+
+	// Parse the height as integer
+	heightInt, err := strconv.Atoi(height)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse height: %w", err)
+	}
+
+	// Parse the width as integer
+	widthInt, err := strconv.Atoi(width)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse width: %w", err)
+	}
+
+	// Resize the image with the provided dimensions
+	// resized := imaging.Resize(src, widthInt, heightInt, imaging.Lanczos)
+
+	// Resize and crop the srcImage to fill the 100x100px area.
+	// croppedImg := imaging.Fill(src, widthInt, heightInt, imaging.Center, imaging.Lanczos)
+
+	// Crop the original image to 300x300px size using the center anchor.
+	croppedImg := imaging.CropAnchor(src, widthInt, heightInt, imaging.Center)
+
+	// Create a buffer to store the converted image
 	outputBuf := bytes.NewBuffer(nil)
 
-	// DEFINITELY NOT THE BEST WAY TO DO THIS. vvvvv
-	// REFACTOR THIS LATER.
-
-	// If the image is being converted to WEBP,
-	// use chai2010/webp to convert the image to WEBP
-	// and return the converted image as a byte slice.
+	// Check the image format and encode
+	// the image to the buffer with the appropriate format.
 	if format == "webp" {
-		// Convert the image to WEBP
-		// and return the converted image as a byte slice.
-		// Encode lossless webp
-		if err = webp.Encode(outputBuf, src, &webp.Options{Lossless: true}); err != nil {
-			return nil, fmt.Errorf("failed to encode image to WEBP: %w", err)
+		// Encode the image using chai2010/webp
+		if err = webp.Encode(outputBuf, croppedImg, &webp.Options{Lossless: true}); err != nil {
+			return nil, "", fmt.Errorf("failed to encode image to WEBP: %w", err)
 		}
 	} else {
-		// Save the converted image to the buffer in the desired format
-		err = imaging.Encode(outputBuf, src, formatMapping[format])
+		// Encode the image using disintegration/imaging
+		err = imaging.Encode(outputBuf, croppedImg, formatMapping[format])
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode image to %s: %w", format, err)
+			return nil, "", fmt.Errorf("failed to encode image to %s: %w", format, err)
 		}
 	}
 
-	return outputBuf.Bytes(), nil
+	// Return the resized image as a byte slice
+	return outputBuf.Bytes(), format, nil
 }
 
 // storeImage stores an image in cloud storage and returns an authenticated URL to the image
-func storeImage(buf []byte, newExt string) (string, error) {
+func storeCroppedImage(buf []byte, newExt string) (string, error) {
 	// Generate a random URL with timestamp
 	rand.Seed(time.Now().UnixNano())
 	randNum := rand.Intn(1000)
@@ -305,7 +280,7 @@ func storeImage(buf []byte, newExt string) (string, error) {
 	defer cancel() // make sure to cancel the context to avoid potential resource leaks
 
 	// Bucket name
-	bucketName := "webchest_image_converter"
+	bucketName := "webchest_image_api_bucket"
 
 	// Get the global storage client instance
 	client := config.GetStorageClient()

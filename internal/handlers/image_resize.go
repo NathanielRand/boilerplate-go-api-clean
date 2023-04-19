@@ -22,32 +22,6 @@ type ImageResizeResponse struct {
 	ImageURL string `json:"image_url"`
 }
 
-// getImageFormat returns the image format of the file
-func getImageFormat(filename string) (string, error) {
-	// Get the file extension
-	extension := filename[len(filename)-3:]
-
-	// Check the file extension
-	switch extension {
-	case "jpg":
-		return "jpg", nil
-	case "peg":
-		return "jpg", nil
-	case "png":
-		return "png", nil
-	case "ebp":
-		return "webp", nil
-	case "bmp":
-		return "bmp", nil
-	case "gif":
-		return "gif", nil
-	case "iff":
-		return "tiff", nil
-	default:
-		return "", fmt.Errorf("Invalid file extension: %s", extension)
-	}
-}
-
 // ImageResizeHandler is a handler for the /image-resize endpoint.
 func ImageResizeHandler(w http.ResponseWriter, r *http.Request) {
 	// Your API logic goes here// Create a new instance of ResponseWriterWrapper
