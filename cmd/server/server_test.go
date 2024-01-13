@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/NathanielRand/webchest-image-converter-api/internal/routes"
+	"github.com/NathanielRand/boilerplate-go-api-clean/internal/routes"
 )
 
 func TestStartServer(t *testing.T) {

@@ -35,9 +35,6 @@ cloud.google.com/go/storage/internal/apiv2/stubs
 ## explicit; go 1.17
 firebase.google.com/go/v4/db
 firebase.google.com/go/v4/internal
-# github.com/chai2010/webp v1.1.1
-## explicit; go 1.17
-github.com/chai2010/webp
 # github.com/disintegration/imaging v1.6.2
 ## explicit
 github.com/disintegration/imaging

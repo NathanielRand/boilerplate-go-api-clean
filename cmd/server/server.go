@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	// "github.com/NathanielRand/webchest-image-converter-api/internal/config"
-	"github.com/NathanielRand/webchest-image-converter-api/internal/routes"
+	// "github.com/NathanielRand/boilerplate-go-api-clean/internal/config"
+	"github.com/NathanielRand/boilerplate-go-api-clean/internal/routes"
 )
 
 // Start

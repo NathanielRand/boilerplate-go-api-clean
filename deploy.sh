@@ -3,17 +3,17 @@
 #################################################
 
 # Log service deployment
-echo 'Running Image Converter API Database Deployment...'
+echo 'Running Go API Clean Deployment...'
 
 # Configure GCloud Project
 echo 'Configing gcloud project...'
-gcloud config set project webchest
+gcloud config set project morebytes
 
 # Build GCloud Docker Image
 echo 'Build new gcloud image...'
-gcloud builds submit --tag gcr.io/webchest/webchest-image-converter-api
+gcloud builds submit --tag gcr.io/morebytes/boilerplate-go-api-clean
 
 # Deploy new Docker Image to Cloud Run
 echo 'Deploying to gcloud run...'
-gcloud run deploy webchest-image-converter-api --image gcr.io/webchest/webchest-image-converter-api --platform managed --region us-east1 --memory 2Gi --cpu 2 --allow-unauthenticated
+gcloud run deploy boilerplate-go-api-clean --image gcr.io/morebytes/boilerplate-go-api-clean --platform managed --region us-east1 --memory 2Gi --cpu 2 --allow-unauthenticated
 

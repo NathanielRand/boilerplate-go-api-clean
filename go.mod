@@ -1,4 +1,4 @@
-module github.com/NathanielRand/webchest-image-converter-api
+module github.com/NathanielRand/boilerplate-go-api-clean
 
 go 1.20
 
@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go/firestore v1.9.0
 	cloud.google.com/go/storage v1.30.1
 	firebase.google.com/go/v4 v4.11.0
-	github.com/chai2010/webp v1.1.1
 	github.com/disintegration/imaging v1.6.2
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.5.1

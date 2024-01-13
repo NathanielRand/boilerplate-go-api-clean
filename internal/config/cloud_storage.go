@@ -11,6 +11,7 @@ var (
 	storageClient *storage.Client
 )
 
+// Initialize the Google Cloud Storage client
 func init() {
 	// Initialize the Google Cloud Storage client
 	var err error
@@ -24,18 +25,3 @@ func init() {
 func GetStorageClient() *storage.Client {
 	return storageClient
 }
-
-
-// ORIGINAL METHOD BEFORE REFACTORING
-// DELETE THIS METHOD AFTER REFACTORING
-
-// InitStorage initializes a Google Cloud Storage client.
-// func InitStorage(ctx context.Context) (*storage.Client, error) {
-// 	// TODO: Replace with your own Google Cloud Storage project credentials file path
-// 	opt := option.WithCredentialsFile("<path/to/your/credentials/file>")
-// 	client, err := storage.NewClient(ctx, opt)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error initializing Google Cloud Storage client: %v", err)
-// 	}
-// 	return client, nil
-// }

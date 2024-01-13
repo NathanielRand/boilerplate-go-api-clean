@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/NathanielRand/webchest-image-converter-api/cmd/server"
+	"github.com/NathanielRand/boilerplate-go-api-clean/cmd/server"
 )
 
 func main() {

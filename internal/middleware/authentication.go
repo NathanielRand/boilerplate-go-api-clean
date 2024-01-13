@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	// "github.com/NathanielRand/webchest-image-converter-api/internal/config"
-	// "github.com/NathanielRand/webchest-image-converter-api/internal/repositories"
 )
 
 // AuthenticationMiddleware is a middleware function that checks the request
@@ -14,20 +12,20 @@ import (
 func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check the request for valid source/referrer credentials
-		if !validSource(r) {
-			// If the request is not from a valid source, return an error response
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channel (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
-			return
-		}
-
-		// Check the request for valid authentication credentials
-		// if !validAuthentication(r) {
-		// 	// If the request is not authenticated, return an error response
+		// if !validSource(r) {
+		// 	// If the request is not from a valid source, return an error response
 		// 	w.Header().Set("Content-Type", "application/json")
-		// 	json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials."}`)
+		// 	json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please verify you are making a request through a verified channel (i.e RapidAPI, Postman API Marketplace, etc..)."}`)
 		// 	return
 		// }
+
+		// Check the request for valid authentication credentials
+		if !validAuthentication(r) {
+			// If the request is not authenticated, return an error response
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(`{"status": "error", "message": "Unauthorized request. Please provide valid authentication credentials."}`)
+			return
+		}
 
 		// Check if the user exists in the database, and if the user is active
 		// otherwise, create a new user in the database and continue,
@@ -58,7 +56,7 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 func validSource(r *http.Request) bool {
 	// Define a map of valid source keys and values
 	validSources := map[string]string{
-		"x-rapidapi-proxy-secret": "a8cc0e10-dd54-11ed-a321-315a0260571a",
+		"x-api-proxy-secret": "x8cc0e10-dd53-11ed-a321-315a0260571a",
 		// Add more valid source keys and values here
 	}
 

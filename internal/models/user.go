@@ -17,24 +17,3 @@ type User struct {
 	Username      string   `json:"username"`
 	Volume        int      `json:"volume"`
 }
-
-// NewUser creates a new user.
-// func NewUser(userRealIP, username, key, forwaredIP, forwaredHost, subscription, affiliation, email, platform, quota, rateLimit) *User {
-// 	return &User{
-// 		Affiliations:  []string{},
-// 		Email:         "",
-// 		ForwardedIP:   "",
-// 		ForwardedHost: "",
-// 		ID:            "",
-// 		Keys:          []string{},
-// 		LoyaltyScore:  "",
-// 		Platform:      "",
-// 		Quota:         0,
-// 		RateLimit:     0,
-// 		RealIP:        "",
-// 		Spend:         0,
-// 		Subscription:  "",
-// 		Username:      "",
-// 		Volume:        0,
-// 	}
-// }

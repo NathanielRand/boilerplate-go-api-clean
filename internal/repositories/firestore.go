@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"firebase.google.com/go/v4/db"
-	"github.com/NathanielRand/webchest-image-converter-api/internal/models"
+	"github.com/NathanielRand/boilerplate-go-api-clean/internal/models"
 )
 
 // FirestoreRepository is a repository that retrieves data from Firestore.
