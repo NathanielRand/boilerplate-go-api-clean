@@ -1,5 +1,5 @@
-# Image Converter API
-### WebChest API Collection
+# Go API Clean
+### Boilerplate Collection
 
 <br>
 
