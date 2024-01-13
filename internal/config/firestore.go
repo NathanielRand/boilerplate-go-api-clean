@@ -18,7 +18,7 @@ func init() {
 	ctx := context.Background()
 
 	// Set your Google Cloud Platform project ID
-	projectID := "morebytes"
+	projectID := "<project-id-here>"
 
 	// Create Firestore client with project ID
 	// Additional Options (if needed due to deployment 
